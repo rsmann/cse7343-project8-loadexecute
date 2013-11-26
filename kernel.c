@@ -14,34 +14,37 @@ void printString(char* message);
 void readSector(char* buffer, int sector);
 void readString(char* buffer);
 void readFile(char* filename, char* buffer);
+void executeProgram(char* name, int segment);
+void terminate();
 
 /* Some pseudo-constants (since I'm unsure of K&R C requirements)
  * for use in calculations in other functions involving memory offsets
  */
-char interruptVideo = 0x10;
-char interruptDisk = 0x13;
-char interruptKeyboard = 0x16;
-char interruptCustom = 0x21;
+#define interruptVideo 0x10
+#define interruptDisk 0x13
+#define interruptKeyboard 0x16
+#define interruptCustom 0x21
 
-char commandPrintString = 0x0;
-char commandReadString = 0x1;
-char commandReadSector = 0x2;
-char commandReadFile = 0x3;
-char commandPrintCharacter = 0xE;
+#define commandPrintString 0x0
+#define commandReadString 0x1
+#define commandReadSector 0x2
+#define commandReadFile 0x3
+#define commandExecuteProgram 0x6
+#define commandTerminate 0x7
+#define commandPrintCharacter 0xE
 
-char deviceFloppy = 0;
+#define deviceFloppy 0
 
-
-char charBackspace = 0x8;
-char charEnter = 0xD;
-char charLineFeed = 0xA;
-char charNull = 0x0;
+#define charBackspace 0x8
+#define charEnter 0xD
+#define charLineFeed 0xA
+#define charNull 0x0
 
 #define maxFileSize 13312
 #define maxFilenameLength 6
 
-int sectorMap = 1;
-int sectorDirectory = 2;
+#define sectorMap 1
+#define sectorDirectory 2
 #define sectorSize 512
 #define dirEntrySize 0x20
 
@@ -53,10 +56,41 @@ int main()
 	makeInterrupt21();
 	
 	/* Step 1 Requirement */
-	interrupt(interruptCustom, commandReadFile, "messag\0", buffer, 0); /* Read file into buffer */
-	interrupt(interruptCustom, commandPrintString, buffer, 0, 0); /* Print out the file */
+	//interrupt(interruptCustom, commandReadFile, "messag\0", buffer, 0); /* Read file into buffer */
+	//interrupt(interruptCustom, commandPrintString, buffer, 0, 0); /* Print out the file */
+
+	/* Step 2 Requirement */
+	interrupt(interruptCustom, commandExecuteProgram, "tstprg\0", 0x2000, 0); /* Read file into buffer */
+
+	/* Step 3 Requirement */
+	//interrupt(interruptCustom, commandExecuteProgram, "tstpr2\0", 0x2000, 0); /* Read file into buffer */
 
 	while (1) {}
+}
+
+void executeProgram(char* name, int segment)
+{
+	char buffer[maxFileSize];
+	int i = 0;
+
+	/* Load file into buffer */
+	printString("Loading file\r\n\0");
+	interrupt(interruptCustom, commandReadFile, name, buffer, 0); /* Read file into buffer */
+
+	//printString(buffer);
+
+	printString("Copying buffer\r\n\0");
+	/* Copy the buffer into the segment */
+	for (i = 0; i < maxFileSize; i++)
+	{
+		putInMemory(segment, i, buffer[i]);
+	}
+
+	printString("Launching.\r\n\0");
+	/* Launch the program */
+	launchProgram(segment);
+	printString("Launched.\r\n\0");
+
 }
 
 /* Handles any incoming interrupt 21 calls */
@@ -79,6 +113,14 @@ void handleInterrupt21(int ax, int bx, int cx, int dx)
 
 		case 0x3: /* commandReadFile */
 			readFile(bx, cx);
+			break;
+
+		case 0x6: /* commandExecuteProgram */
+			executeProgram(bx, cx);
+			break;
+
+		case 0x7: /* commandTerminate */
+			terminate();
 			break;
 
 		default:
@@ -137,6 +179,11 @@ void printString(char* message)
 	}
 
 	return;
+}
+
+void terminate()
+{
+	while (1) {}
 }
 
 /* Read a file from disk into the specified buffer */
