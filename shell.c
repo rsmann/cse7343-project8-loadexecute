@@ -59,6 +59,7 @@ int main() {
 		{
 			interrupt(0x21, 0, "Error!\r\n\0", 0, 0);
 			displayError();
+			
 		}
 
 	}
