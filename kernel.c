@@ -60,12 +60,15 @@ int main()
 	//interrupt(interruptCustom, commandPrintString, buffer, 0, 0); /* Print out the file */
 
 	/* Step 2 Requirement */
-	//interrupt(interruptCustom, commandExecuteProgram, "tstprg\0", 0x2000, 0); /* Read file into buffer */
+	//interrupt(interruptCustom, commandExecuteProgram, "tstprg\0", 0x2000, 0); /* Load and execute */
 
 	/* Step 3 Requirement */
-	interrupt(interruptCustom, commandExecuteProgram, "tstpr2\0", 0x2000, 0); /* Read file into buffer */
+	//interrupt(interruptCustom, commandExecuteProgram, "tstpr2\0", 0x2000, 0); /* Load and execute */
 
-	while (1) {}
+	/* Step 4 Requirement */
+	interrupt(interruptCustom, commandExecuteProgram, "shell\0", 0x2000, 0); /* Load and execute */
+
+	//while (1) {}
 }
 
 void executeProgram(char* name, int segment)
@@ -74,22 +77,22 @@ void executeProgram(char* name, int segment)
 	int i = 0;
 
 	/* Load file into buffer */
-	printString("Loading file\r\n\0");
+	//printString("Loading file\r\n\0");
 	interrupt(interruptCustom, commandReadFile, name, buffer, 0); /* Read file into buffer */
 
 	//printString(buffer);
 
-	printString("Copying buffer\r\n\0");
+	//printString("Copying buffer\r\n\0");
 	/* Copy the buffer into the segment */
 	for (i = 0; i < maxFileSize; i++)
 	{
 		putInMemory(segment, i, buffer[i]);
 	}
 
-	printString("Launching.\r\n\0");
+	//printString("Launching.\r\n\0");
 	/* Launch the program */
 	launchProgram(segment);
-	printString("Launched.\r\n\0");
+	//printString("Launched.\r\n\0");
 
 }
 
@@ -184,7 +187,7 @@ void printString(char* message)
 void terminate()
 {
 	printString("Terminating...\r\n\0");
-	while (1) {}
+	interrupt(interruptCustom, commandExecuteProgram, "shell\0", 0x2000, 0); /* Load and execute */
 }
 
 /* Read a file from disk into the specified buffer */
