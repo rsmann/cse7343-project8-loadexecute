@@ -17,9 +17,7 @@ void readFile(char* filename, char* buffer);
 void executeProgram(char* name, int segment);
 void terminate();
 
-/* Some pseudo-constants (since I'm unsure of K&R C requirements)
- * for use in calculations in other functions involving memory offsets
- */
+/* Constants for use in calculations in other functions */
 #define interruptVideo 0x10
 #define interruptDisk 0x13
 #define interruptKeyboard 0x16
@@ -65,7 +63,7 @@ int main()
 	/* Step 3 Requirement */
 	//interrupt(interruptCustom, commandExecuteProgram, "tstpr2\0", 0x2000, 0); /* Load and execute */
 
-	/* Step 4 Requirement */
+	/* Step 4, 5, 6 Requirement */
 	interrupt(interruptCustom, commandExecuteProgram, "shell\0", 0x2000, 0); /* Load and execute */
 
 	//while (1) {}
@@ -77,23 +75,16 @@ void executeProgram(char* name, int segment)
 	int i = 0;
 
 	/* Load file into buffer */
-	//printString("Loading file\r\n\0");
 	interrupt(interruptCustom, commandReadFile, name, buffer, 0); /* Read file into buffer */
 
-	//printString(buffer);
-
-	//printString("Copying buffer\r\n\0");
 	/* Copy the buffer into the segment */
 	for (i = 0; i < maxFileSize; i++)
 	{
-		putInMemory(segment, i, buffer[i]);
+	       putInMemory(segment, i, buffer[i]);
 	}
 
-	//printString("Launching.\r\n\0");
 	/* Launch the program */
 	launchProgram(segment);
-	//printString("Launched.\r\n\0");
-
 }
 
 /* Handles any incoming interrupt 21 calls */
@@ -186,7 +177,6 @@ void printString(char* message)
 
 void terminate()
 {
-	printString("Terminating...\r\n\0");
 	interrupt(interruptCustom, commandExecuteProgram, "shell\0", 0x2000, 0); /* Load and execute */
 }
 

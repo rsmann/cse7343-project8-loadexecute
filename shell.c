@@ -21,6 +21,10 @@ int main() {
 	{
 		partIndex = 0;
 		offset = 0;
+		input[0] = '\0';
+		buffer[0] = '\0';
+		part[0][0] = '\0';
+		part[1][0] = '\0';
 
 		// Capture command line input
 		interrupt(0x21, 0, "Shell> ", 0, 0);
@@ -46,20 +50,27 @@ int main() {
 
 		if (matches("execute", part[0]) == 1)
 		{
-			interrupt(0x21, 0, "Execute!\r\n\0", 0, 0);
+			if (part[1][0] == '\0')
+			{
+				displayError();
+				continue;
+			}
 			interrupt(0x21, 0x6, part[1], 0x2000, 0);
 		}
 		else if (matches("type", part[0]) == 1)
 		{
-			interrupt(0x21, 0, "Type!\r\n\0", 0, 0);
+			if (part[1][0] == '\0')
+			{
+				displayError();
+				continue;
+			}
+
 			interrupt(0x21, 0x3, part[1], buffer, 0);
 			interrupt(0x21, 0x0, buffer, 0, 0);
 		}
 		else
 		{
-			interrupt(0x21, 0, "Error!\r\n\0", 0, 0);
 			displayError();
-			
 		}
 
 	}
@@ -84,22 +95,15 @@ int matches(char* s1, char* s2)
 		maxSize = size2;
 	}
 
-	interrupt(0x21, 0, s1, 0, 0);
-	interrupt(0x21, 0, "\r\n\0", 0, 0);
-	interrupt(0x21, 0, s2, 0, 0);
-	interrupt(0x21, 0, "\r\n\0", 0, 0);
-
     //Compare the name
     for (n = 0; n < maxSize; n++)
     {
         if(s1[n] != s2[n])
         {
-        	interrupt(0x21, 0, "No match\r\n\0", 0, 0);
             return 0;
         }
     }
 
-	interrupt(0x21, 0, "Match\r\n\0", 0, 0);
     return 1;
 }
 
