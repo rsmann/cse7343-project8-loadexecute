@@ -47,7 +47,7 @@ int main() {
 		if (matches("execute", part[0]) == 1)
 		{
 			interrupt(0x21, 0, "Execute!\r\n\0", 0, 0);
-			interrupt(0x21, 0x6, part[1], 0, 0);
+			interrupt(0x21, 0x6, part[1], 0x2000, 0);
 		}
 		else if (matches("type", part[0]) == 1)
 		{
