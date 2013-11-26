@@ -187,4 +187,131 @@ void terminate()
 	while (1) {}
 }
 
-/* Read a file from disk into the
+/* Read a file from disk into the specified buffer */
+void readFile(char* filename, char* buffer)
+{
+        char dir[sectorSize];
+        int i = 0;
+        int n = 0;
+        int match = 0;
+        int dirIndex = 0;
+        int offset = 0;
+
+        /* Load the directory sector into a 512 byte character array using readSector */
+        readSector(dir, sectorDirectory);
+
+        /* Go through the directory trying to match the filename. If not found, return. */
+        for (i = 0; i < sectorSize; i = i + dirEntrySize)
+        {
+                match = 1;
+
+                //Compare the name
+                for (n = 0; n < 6; n++)
+                {
+                        if(filename[n] != dir[i + n])
+                        {
+                                match = 0;
+                                break;
+                        }
+                }
+
+                if (match == 1)
+                {
+                        /* Filename matches */
+                        break;
+                }
+        }
+
+        /* Did we ever find it? */
+        if (i == sectorSize)
+        {
+                printString("File not found.\r\n\0");
+                return;
+        }
+
+        /* Which directory index held the file? */
+        dirIndex = i;
+        offset = 0;
+
+        /* Using the sector numbers in the directory, load the file, sector by sector, into the buffer array */
+        /* Loading file sector by sector */
+
+        for (i = dirIndex + maxFilenameLength; i < dirIndex + dirEntrySize; i++)
+        {
+                if (dir[i] == 0)
+                {
+                        /* Found null in sector list. Exiting. */
+                        break;
+                }
+
+                /* Reading into buffer. */
+                readSector(buffer + offset, dir[i]);
+                offset += sectorSize;
+        }
+
+        return;
+}
+
+/* Read a sector from disk */
+void readSector(char* buffer, int sector)
+{
+        int relativeSector = mod(sector, 18) + 1;
+        int head = mod(sector / 18, 2);
+        int track = sector / 36;
+        int sectorCount = 1;
+
+        interrupt(interruptDisk,
+                                getRegisterValue(commandReadSector, sectorCount),
+                                buffer,
+                                getRegisterValue(track, relativeSector),
+                                getRegisterValue(head, deviceFloppy));
+
+}
+
+/* Read a line from the keyboard */
+void readString(char* buffer)
+{
+        char currentChar = '\0';
+        int charIndex = 0;
+
+        /* Ensure that the input buffer is not zero-length */
+        if (sizeof(buffer) ==0)
+        {
+                printString("Zero-length buffer exception.\r\0");
+                return;
+        }
+
+        do
+        {
+                /* Read the first character from the keyboard to set up the loop */
+                /* Interrupt returns the ASCII code for the key pressed. */
+                currentChar = interrupt(interruptKeyboard, 0, 0, 0, 0);
+
+                if (currentChar != charBackspace)
+                {
+                        /* Output it to the screen */
+                        interrupt(interruptVideo, getRegisterValue(commandPrintCharacter, currentChar), 0, 0, 0);
+
+                        buffer[charIndex] = currentChar;
+                        charIndex++;
+                }
+                else if (currentChar == charBackspace)
+                {
+                        if (charIndex > 0) charIndex--;
+                        {
+                                /* Clear the character from the screen instead of just backing the cursor up */
+                                interrupt(interruptVideo, getRegisterValue(commandPrintCharacter, charBackspace), 0, 0, 0);
+                                interrupt(interruptVideo, getRegisterValue(commandPrintCharacter, charNull), 0, 0, 0);
+                                interrupt(interruptVideo, getRegisterValue(commandPrintCharacter, charBackspace), 0, 0, 0);
+
+                                /* Clear the character from the buffer as well. */                                
+                                buffer[charIndex] = charNull;
+                        }
+                }
+
+        } while (currentChar != charEnter);
+
+        /* Append line feed and null to end of input */
+        buffer[charIndex] = charLineFeed;
+        buffer[charIndex + 1] = charNull;
+}
