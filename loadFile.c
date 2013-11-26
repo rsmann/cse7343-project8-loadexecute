@@ -68,6 +68,8 @@ main(int argc, char* argv[])
 		dir[dirindex+i]=argv[1][i];
 	}
 
+	printf("dirIndex=%d\n", dirindex);
+
 	dirindex=dirindex+6;
 
 	//find free sectors and add them to the file

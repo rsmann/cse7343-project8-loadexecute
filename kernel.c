@@ -1,8 +1,8 @@
 /* Kernel.c
  * Scott Mann
- * CSE 7343 - Project 7
- * A simple kernel to support printing a string to video, 
- * reading a line from the keyboard, and reading a sector from disk.
+ * CSE 7343 - Project 8
+ * A project to read files into memory and execute programs.
+ * Also, a shell to execute other programs and print out ASCII files.
  */
 
 /* Function Prototypes */
@@ -13,6 +13,7 @@ int div(int a, int b);
 void printString(char* message);
 void readSector(char* buffer, int sector);
 void readString(char* buffer);
+void readFile(char* filename, char* buffer);
 
 /* Some pseudo-constants (since I'm unsure of K&R C requirements)
  * for use in calculations in other functions involving memory offsets
@@ -25,6 +26,7 @@ char interruptCustom = 0x21;
 char commandPrintString = 0x0;
 char commandReadString = 0x1;
 char commandReadSector = 0x2;
+char commandReadFile = 0x3;
 char commandPrintCharacter = 0xE;
 
 char deviceFloppy = 0;
@@ -35,36 +37,27 @@ char charEnter = 0xD;
 char charLineFeed = 0xA;
 char charNull = 0x0;
 
+#define maxFileSize 13312
+#define maxFilenameLength 6
+
+int sectorMap = 1;
+int sectorDirectory = 2;
+#define sectorSize 512
+#define dirEntrySize 0x20
+
 /* The main entry point of the program */
 int main()
 {
-	char inputBuffer[80];
-	char sectorBuffer[512];
-	char line[80];
+	char buffer[maxFileSize];
+	printString("Starting...\r\n\0");
 
-	/* Step 1 Requirement */
-	printString("Hello World\r\n\0");
-	
-	/* Step 2 Requirement */
-	printString("Enter a line: \0");
-	readString(inputBuffer);
-	printString("\r\n\0");
-	printString(inputBuffer);
-
-	/* Step 3 Requirement */
-	readSector(sectorBuffer, 30);
-	printString(sectorBuffer);
-
-	/* Step 4 Requirement */
 	makeInterrupt21();
-	/* Step 5 breaks this behavior */
-	/* interrupt(interruptCustom, 0, 0, 0, 0); */
+	
+	printString("Reading file into buffer.\r\n\0");
+	interrupt(interruptCustom, commandReadFile, "messag\0", buffer, 0); /* Read file into buffer */
 
-	/* Step 5 Requirement */
-	/* makeInterrupt21 already executed in the step before */
-	interrupt(interruptCustom, commandReadString, line, 0, 0);
-	interrupt(interruptCustom, commandPrintString, line, 0, 0);
-	interrupt(interruptCustom, 99, 0, 0, 0);
+	printString("Printing out the file.\r\n\0");
+	interrupt(interruptCustom, commandPrintString, buffer, 0, 0); /* Print out the file */
 
 	while (1) {}
 }
@@ -85,6 +78,10 @@ void handleInterrupt21(int ax, int bx, int cx, int dx)
 
 		case 0x2: /* commandReadSector */
 			readSector(bx, cx);
+			break;
+
+		case 0x3: /* commandReadFile */
+			readFile(bx, cx);
 			break;
 
 		default:
@@ -142,6 +139,80 @@ void printString(char* message)
 		currentChar = message[i];
 	}
 
+	return;
+}
+
+/* Read a file from disk into the specified buffer */
+void readFile(char* filename, char* buffer)
+{
+	char dir[sectorSize];
+	int i = 0;
+	int n = 0;
+	int match = 0;
+	int dirIndex = 0;
+	int offset = 0;
+
+	printString("Reading file.\r\n\0");
+	printString(filename);
+	printString("\r\n\0");
+
+	/* Load the directory sector into a 512 byte character array using readSector */
+	readSector(dir, sectorDirectory);
+
+	/* Go through the directory trying to match the filename. If not found, return. */
+	for (i = 0; i < sectorSize; i = i + dirEntrySize)
+	{
+		match = 1;
+
+		//copy the name over
+		for (n = 0; n < 6; n++)
+		{
+			if(filename[n] != dir[i + n])
+			{
+				match = 0;
+				break;
+			}
+		}
+
+		if (match == 1)
+		{
+			printString("Filename matches.\r\n\0");
+			break;
+		}
+	}
+
+	/* Did we ever find it? */
+	if (i == sectorSize)
+	{
+		printString("File not found.\r\n\0");
+		return;
+	}
+
+	/* Which directory index held the file? */
+	dirIndex = i;
+	offset = 0;
+
+	/* Using the sector numbers in the directory, load the file, sector by sector, into the buffer array */
+	printString("Loading file sector by sector.\r\n\0");
+
+	for (i = dirIndex + maxFilenameLength; i < dirIndex + dirEntrySize; i++)
+	{
+		printString(dir[i]);
+
+		if (dir[i] == 0)
+		{
+			printString("Found null in sector list. Exiting.\r\n\0");
+			break;
+		}
+
+		printString("Reading into buffer.\r\n\0");
+		readSector(buffer + offset, dir[i]);
+		offset += sectorSize;
+
+		printString(buffer);
+	}
+
+	/* Return */
 	return;
 }
 
