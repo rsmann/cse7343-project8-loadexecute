@@ -49,14 +49,11 @@ int sectorDirectory = 2;
 int main()
 {
 	char buffer[maxFileSize];
-	printString("Starting...\r\n\0");
 
 	makeInterrupt21();
 	
-	printString("Reading file into buffer.\r\n\0");
+	/* Step 1 Requirement */
 	interrupt(interruptCustom, commandReadFile, "messag\0", buffer, 0); /* Read file into buffer */
-
-	printString("Printing out the file.\r\n\0");
 	interrupt(interruptCustom, commandPrintString, buffer, 0, 0); /* Print out the file */
 
 	while (1) {}
@@ -152,10 +149,6 @@ void readFile(char* filename, char* buffer)
 	int dirIndex = 0;
 	int offset = 0;
 
-	printString("Reading file.\r\n\0");
-	printString(filename);
-	printString("\r\n\0");
-
 	/* Load the directory sector into a 512 byte character array using readSector */
 	readSector(dir, sectorDirectory);
 
@@ -164,7 +157,7 @@ void readFile(char* filename, char* buffer)
 	{
 		match = 1;
 
-		//copy the name over
+		//Compare the name
 		for (n = 0; n < 6; n++)
 		{
 			if(filename[n] != dir[i + n])
@@ -176,7 +169,7 @@ void readFile(char* filename, char* buffer)
 
 		if (match == 1)
 		{
-			printString("Filename matches.\r\n\0");
+			/* Filename matches */
 			break;
 		}
 	}
@@ -193,26 +186,21 @@ void readFile(char* filename, char* buffer)
 	offset = 0;
 
 	/* Using the sector numbers in the directory, load the file, sector by sector, into the buffer array */
-	printString("Loading file sector by sector.\r\n\0");
+	/* Loading file sector by sector */
 
 	for (i = dirIndex + maxFilenameLength; i < dirIndex + dirEntrySize; i++)
 	{
-		printString(dir[i]);
-
 		if (dir[i] == 0)
 		{
-			printString("Found null in sector list. Exiting.\r\n\0");
+			/* Found null in sector list. Exiting. */
 			break;
 		}
 
-		printString("Reading into buffer.\r\n\0");
+		/* Reading into buffer. */
 		readSector(buffer + offset, dir[i]);
 		offset += sectorSize;
-
-		printString(buffer);
 	}
 
-	/* Return */
 	return;
 }
 
